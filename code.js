@@ -6,7 +6,7 @@
 
 // !!! GANTI URL INI DENGAN WEB APP URL HASIL DEPLOY APPS SCRIPT ANDA !!!
 const API_ENDPOINT =
-  "https://script.google.com/macros/s/AKfyby...MASUKKAN_ID_DEPLOYMENT_ANDA_DISINI.../exec";
+  "https://script.google.com/macros/s/AKfycbyZtRLae-Ji1dY9sUqrKOo5maaxYdbtjz1grdfy-depAss-7muwK8Mb4X1aEfFBOolVaQ/exec";
 
 let globalAllRecords = [];
 let globalFilteredRecords = [];
