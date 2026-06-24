@@ -1,12 +1,11 @@
 /**
  * Frontend Logic (code.js) - GitHub Deployment Version
  * Pemantauan Tambat Kapal - KSOP Kelas II Pekanbaru
- * * UI/UX Versi Terpisah, Kontras Tinggi, & Multi-Form Zebra Striping
+ * * UI/UX Versi Terpisah, Kontras Tinggi, Multi-Form Zebra Striping, & Integrated Excel Export Engine
  */
 
 // !!! GANTI URL INI DENGAN WEB APP URL HASIL DEPLOY APPS SCRIPT ANDA !!!
-const API_ENDPOINT =
-  "https://script.google.com/macros/s/AKfycbyZtRLae-Ji1dY9sUqrKOo5maaxYdbtjz1grdfy-depAss-7muwK8Mb4X1aEfFBOolVaQ/exec";
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbyZtRLae-Ji1dY9sUqrKOo5maaxYdbtjz1grdfy-depAss-7muwK8Mb4X1aEfFBOolVaQ/exec";
 
 let globalAllRecords = [];
 let globalFilteredRecords = [];
@@ -98,7 +97,7 @@ function generateForms(count) {
             <input type="text" class="inp-posisi" required placeholder="Contoh: Dermaga 01">
           </div>
           <div class="form-block">
-            </div>
+          </div>
         </div>
       </div>
 
@@ -443,7 +442,7 @@ function renderPaginationControls() {
       i === totalPages ||
       (i >= currentPage - 2 && i <= currentPage + 2)
     ) {
-      const pBtn = document.createElement("button");
+      const pBtn = document.createElement('button');
       pBtn.className = `page-btn ${currentPage === i ? "active" : ""}`;
       pBtn.innerText = i;
       pBtn.onclick = () => {
@@ -470,4 +469,75 @@ function renderPaginationControls() {
     }
   };
   pBox.appendChild(nextBtn);
+}
+
+/**
+ * CORE EXPORT ENGINE: Memproses data terfilter dan mendownload file Excel
+ * Berdasarkan penamaan dinamis sesuai filter/pencarian aktif harian
+ */
+async function exportFilteredData() {
+  if (globalFilteredRecords.length === 0) {
+    showToast("Tidak ada data terfilter untuk diexport!", "error");
+    return;
+  }
+
+  const konfirmasi = await openConfirmModal(`Apakah Anda yakin ingin mengexport ${globalFilteredRecords.length} baris data yang aktif ke file Excel?`);
+  if (!konfirmasi) return;
+
+  const loader = document.getElementById("global-loader");
+  const loaderText = document.getElementById("loader-text");
+  loaderText.innerText = "Membaca Template & Menyusun Dokumen Laporan...";
+  loader.classList.remove("hide");
+
+  // Menentukan Judul File Berdasarkan Keadaan Filter Aktif
+  const filterBulan = document.getElementById("filter-bulan").value;
+  const filterTahun = document.getElementById("filter-tahun").value;
+  const searchQuery = document.getElementById("search-input").value.trim();
+  
+  let fileName = "DATA TAMBAT";
+  let reportMonth = filterBulan || "SEMUA BULAN";
+  let reportYear = filterTahun || new Date().getFullYear().toString();
+
+  if (filterBulan || filterTahun) {
+    fileName += ` ${reportMonth} ${reportYear}`;
+  } else if (searchQuery) {
+    fileName += ` ${searchQuery.toUpperCase()}`;
+  } else {
+    fileName += " ALL PERIODE";
+  }
+
+  // Siapkan paket payload yang dikirim ke backend Google Apps Script doPost()
+  const payload = {
+    action: "export_excel",
+    fileName: fileName,
+    meta: {
+      bulan: reportMonth,
+      tahun: reportYear
+    },
+    records: globalFilteredRecords
+  };
+
+  fetch(API_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" }, // Menggunakan plain text untuk menghindari preflight CORS
+    body: JSON.stringify(payload)
+  })
+  .then(res => res.json())
+  .then(res => {
+    loader.classList.add("hide");
+    loaderText.innerText = "Memproses Sinkronisasi Data Ke Server..."; // Kembalikan ke default teks
+    
+    if (res.success && res.downloadUrl) {
+      showToast("Laporan Excel Berhasil Dibuat!", "success");
+      // Buka URL download yang dihasilkan oleh server Google Script secara otomatis
+      window.open(res.downloadUrl, "_blank");
+    } else {
+      showToast("Gagal melakukan export: " + res.message, "error");
+    }
+  })
+  .catch(err => {
+    loader.classList.add("hide");
+    loaderText.innerText = "Memproses Sinkronisasi Data Ke Server...";
+    showToast("Error saat menghubungi server export: " + err, "error");
+  });
 }
